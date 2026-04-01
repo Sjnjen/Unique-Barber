@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Unique Barber | Premium Grooming</title>
+    <!-- Fonts: clean modern sans-serif -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #F5F5F7;
+            font-family: 'Inter', 'Montserrat', sans-serif;
+            overflow-x: hidden;
+            color: #1A1A1A;
+        }
+
+        /* GRAY & WHITE THEME */
+        :root {
+            --primary: #2C2C2C;
+            --primary-dark: #1A1A1A;
+            --accent: #6B6B6B;
+            --light: #FFFFFF;
+            --gray-light: #F0F0F0;
+            --gray-mid: #E4E4E7;
+            --text-dark: #1E1E1E;
+            --text-gray: #4A4A4A;
+        }
+
+        /* ========= ZIPPER LOADING SCREEN ========= */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #FFFFFF;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.8s cubic-bezier(0.2, 0.9, 0.4, 1);
+        }
+
+        .zipper-container {
+            width: 320px;
+            text-align: center;
+        }
+
+        .clipper-zipper {
+            position: relative;
+            width: 100%;
+            height: 60px;
+            background: #E8E8EA;
+            border-radius: 40px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .zipper-teeth {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: repeating-linear-gradient(90deg, 
+                #A0A0A0 0px, #A0A0A0 8px,
+                #C0C0C0 8px, #C0C0C0 16px);
+            border-radius: 40px;
+        }
+
+        .clipper-runner {
+            position: absolute;
+            top: -8px;
+            left: -10%;
+            width: 70px;
+            height: 76px;
+            background: #2C2C2C;
+            border-radius: 35px 35px 30px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: left 0.05s linear;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .clipper-runner i {
+            font-size: 32px;
+            color: #FFFFFF;
+        }
+
+        .clipper-runner::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 8px;
+            background: #4A4A4A;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .loading-text {
+            font-family: 'Montserrat', monospace;
+            font-weight: 500;
+            letter-spacing: 2px;
+            font-size: 0.85rem;
+            color: #4A4A4A;
+            text-transform: uppercase;
+            margin-top: 20px;
+        }
+
+        /* Main content wrapper */
+        .main-content {
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+
+        /* ========= HORIZONTAL SECTIONS ========= */
+        .sections-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+
+        .section-panel {
+            flex: 0 0 100%;
+            scroll-snap-align: start;
+            overflow-y: auto;
+            background: #FFFFFF;
+            position: relative;
+        }
+
+        .sections-container::-webkit-scrollbar {
+            height: 6px;
+            background: #E4E4E7;
+        }
+        .sections-container::-webkit-scrollbar-thumb {
+            background: #8A8A8A;
+            border-radius: 10px;
+        }
+
+        /* ========= MENU BUTTONS ========= */
+        .nav-menu {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(12px);
+            padding: 12px 28px;
+            border-radius: 60px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            z-index: 1000;
+            border: 1px solid #E8E8EA;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #4A4A4A;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-btn i {
+            font-size: 1.1rem;
+        }
+
+        .nav-btn.active {
+            background: #2C2C2C;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .nav-btn:hover:not(.active) {
+            background: #E8E8EA;
+            color: #1A1A1A;
+        }
+
+        /* Section content styling */
+        .section-inner {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 80px 40px;
+        }
+
+        /* Hero section */
+        .hero-section {
+            background: linear-gradient(135deg, #FAFAFA 0%, #F0F0F0 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-large {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: clamp(3.5rem, 8vw, 6rem);
+            letter-spacing: -0.02em;
+            color: #1E1E1E;
+            margin-bottom: 1rem;
+        }
+
+        .logo-large span {
+            color: #6B6B6B;
+            font-weight: 500;
+        }
+
+        .since-text {
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            color: #6B6B6B;
+            border-top: 1px solid #D4D4D8;
+            display: inline-block;
+            padding-top: 12px;
+        }
+
+        .contact-info {
+            margin-top: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .contact-chip {
+            background: #FFFFFF;
+            padding: 10px 20px;
+            border-radius: 40px;
+            border: 1px solid #E0E0E3;
+            font-size: 0.9rem;
+        }
+
+        .contact-chip i {
+            margin-right: 8px;
+            color: #2C2C2C;
+        }
+
+        /* Catalog cards - Updated with new prices */
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .service-card {
+            background: #FFFFFF;
+            border: 1px solid #EEEEF0;
+            border-radius: 24px;
+            padding: 28px 24px;
+            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+
+        .service-card:hover {
+            transform: translateY(-8px);
+            border-color: #C0C0C0;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.1);
+        }
+
+        .service-icon {
+            font-size: 2.2rem;
+            color: #2C2C2C;
+            margin-bottom: 16px;
+        }
+
+        .service-card h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .price {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #2C2C2C;
+            margin: 12px 0 6px;
+        }
+
+        .price-note {
+            font-size: 0.75rem;
+            color: #8A8A8A;
+        }
+
+        /* Gallery Section - Masonry Style */
+        .gallery-grid {
+            column-count: 3;
+            column-gap: 20px;
+            margin-top: 30px;
+        }
+
+        .gallery-item {
+            break-inside: avoid;
+            margin-bottom: 20px;
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.4s ease;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 20px;
+            transition: transform 0.5s ease;
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.03);
+        }
+
+        .gallery-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.7));
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .gallery-item:hover .gallery-overlay {
+            opacity: 1;
+        }
+
+        @media (max-width: 900px) {
+            .gallery-grid {
+                column-count: 2;
+            }
+        }
+        @media (max-width: 600px) {
+            .gallery-grid {
+                column-count: 1;
+            }
+        }
+
+        /* Booking form */
+        .booking-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .booking-form-card {
+            flex: 1.2;
+            background: #FAFAFA;
+            padding: 32px;
+            border-radius: 28px;
+            border: 1px solid #E8E8EA;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 14px 18px;
+            background: #FFFFFF;
+            border: 1px solid #E0E0E3;
+            border-radius: 16px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #6B6B6B;
+            box-shadow: 0 0 0 3px rgba(107,107,107,0.1);
+        }
+
+        .whatsapp-btn {
+            background: #25D366;
+            color: #1A1A1A;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: 0.2s;
+        }
+
+        .whatsapp-btn:hover {
+            background: #20b859;
+            transform: scale(1.02);
+        }
+
+        .info-card {
+            flex: 1;
+            background: #FAFAFA;
+            border-radius: 28px;
+            border: 1px solid #E8E8EA;
+            overflow: hidden;
+        }
+
+        #uniqueMap {
+            height: 260px;
+            width: 100%;
+        }
+
+        .hours-box {
+            padding: 24px;
+            border-top: 1px solid #E8E8EA;
+        }
+
+        .hours-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .day-badge {
+            background: #FFFFFF;
+            border: 1px solid #E0E0E3;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        .section-sub {
+            color: #6B6B6B;
+            margin-bottom: 2rem;
+        }
+
+        /* Individual Loading Overlay */
+        .section-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.98);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.5s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .section-loader.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loader-icon {
+            font-size: 4rem;
+            color: #2C2C2C;
+            margin-bottom: 20px;
+            animation: spinLoader 0.8s ease-in-out infinite;
+        }
+
+        @keyframes spinLoader {
+            0% { transform: scale(0.9) rotate(0deg); opacity: 0.5; }
+            50% { transform: scale(1.1) rotate(10deg); opacity: 1; }
+            100% { transform: scale(0.9) rotate(0deg); opacity: 0.5; }
+        }
+
+        .loader-text {
+            font-family: 'Montserrat', monospace;
+            letter-spacing: 2px;
+            font-size: 0.8rem;
+            color: #4A4A4A;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            font-size: 0.75rem;
+            color: #8A8A8A;
+            border-top: 1px solid #EEEEF0;
+            margin-top: 40px;
+        }
+
+        .rising-text {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(40px);
+            animation: riseLetter 0.5s cubic-bezier(0.2, 0.9, 0.4, 1) forwards;
+        }
+
+        @keyframes riseLetter {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 800px) {
+            .nav-menu { padding: 8px 16px; gap: 8px; bottom: 20px; }
+            .nav-btn { padding: 6px 16px; font-size: 0.75rem; }
+            .section-inner { padding: 60px 24px; }
+            .booking-grid { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- MAIN ZIPPER LOADING SCREEN -->
+<div class="loading-screen" id="globalLoader">
+    <div class="zipper-container">
+        <div class="clipper-zipper">
+            <div class="zipper-teeth"></div>
+            <div class="clipper-runner" id="clipperRunner">
+                <i class="fas fa-cut"></i>
+            </div>
+        </div>
+        <div class="loading-text">✂️ PRECISION EDGE • SLICING THROUGH ✂️</div>
+    </div>
+</div>
+
+<!-- Section Loaders (individual) -->
+<div id="sectionLoaderOverlay" class="section-loader">
+    <div class="loader-icon" id="loaderIcon"><i class="fas fa-book"></i></div>
+    <div class="loader-text" id="loaderText">Loading experience...</div>
+</div>
+
+<!-- Main Horizontal Sections -->
+<div class="main-content" id="mainContent">
+    <div class="sections-container" id="sectionsContainer">
+        <!-- SECTION 1: HOME / HERO & SOCIAL -->
+        <section class="section-panel" data-section="home">
+            <div class="hero-section">
+                <div class="section-inner">
+                    <div class="logo-large" id="logoContainer">UNIQUE<br><span>BARBER</span></div>
+                    <div class="since-text"><i class="fas fa-scissors"></i> EST. 2013 • NZHELELE</div>
+                    <div class="contact-info">
+                        <div class="contact-chip"><i class="fab fa-facebook-f"></i> Unique Barber</div>
+                        <div class="contact-chip"><i class="fab fa-instagram"></i> rudzanie_06</div>
+                        <div class="contact-chip"><i class="fab fa-whatsapp"></i> 061 464 2556</div>
+                        <div class="contact-chip"><i class="fas fa-phone"></i> 064 749 0194</div>
+                    </div>
+                    <div style="margin-top: 40px; max-width: 500px;">
+                        <p style="color: #4A4A4A; line-height: 1.6;">Precision grooming • Master craftsmanship • Since 2013</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: CATALOG / PACKAGES (Updated Prices) -->
+        <section class="section-panel" data-section="catalog">
+            <div class="section-inner">
+                <h2 class="section-title">Signature Collections</h2>
+                <p class="section-sub">Premium grooming services • Fresh cuts • Expert styling</p>
+                <div class="services-grid" id="servicesGrid"></div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: GALLERY (Photos barber1.jpg to barber14.jpg) -->
+        <section class="section-panel" data-section="gallery">
+            <div class="section-inner">
+                <h2 class="section-title">Artistry Gallery</h2>
+                <p class="section-sub">Our finest work • Inspiration & style</p>
+                <div class="gallery-grid" id="galleryGrid"></div>
+            </div>
+            <footer>© UNIQUE BARBER — Where style meets precision</footer>
+        </section>
+
+        <!-- SECTION 4: BOOKINGS + MAP -->
+        <section class="section-panel" data-section="bookings">
+            <div class="section-inner">
+                <h2 class="section-title">Secure Your Moment</h2>
+                <p class="section-sub">Select your service, date & time — instant confirmation via WhatsApp</p>
+                <div class="booking-grid">
+                    <div class="booking-form-card">
+                        <div class="form-group">
+                            <input type="text" id="customerName" placeholder="Full name">
+                        </div>
+                        <div class="form-group">
+                            <select id="serviceSelect">
+                                <option value="Haircut - R80">✂️ Haircut - R80</option>
+                                <option value="Bald Head - R50">🪒 Bald Head - R50</option>
+                                <option value="Trimming - R30">✂️ Trimming - R30</option>
+                                <option value="Cut & Black Dye - R150">🎨 Cut & Black Dye - R150</option>
+                                <option value="Cut & Bleach - R180">✨ Cut & Bleach - R180</option>
+                                <option value="Cut, Bleach & Colour - R220">🌈 Cut, Bleach & Colour - R220</option>
+                                <option value="Design - R30">🎯 Design - R30</option>
+                                <option value="Kids Cut (6yrs) - R60">🧒 Kids Cut (6yrs) - R60</option>
+                                <option value="Kids Cut & Black Dye - R110">👦 Kids Cut & Black Dye - R110</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <input type="date" id="bookingDate">
+                        </div>
+                        <div class="form-group">
+                            <input type="time" id="bookingTime" value="11:00">
+                        </div>
+                        <div class="form-group">
+                            <textarea rows="2" placeholder="Style preference / notes" id="notes"></textarea>
+                        </div>
+                        <button class="whatsapp-btn" id="whatsappBookBtn">
+                            <i class="fab fa-whatsapp"></i> Book via WhatsApp
+                        </button>
+                    </div>
+                    <div class="info-card">
+                        <div id="uniqueMap"></div>
+                        <div class="hours-box">
+                            <i class="fas fa-clock"></i> <strong>Opening Hours</strong>
+                            <div class="hours-grid" id="hoursGrid"></div>
+                            <div style="margin-top: 18px; font-size: 0.85rem;">
+                                <i class="fas fa-map-pin"></i> Nzhelele Biaba Home Affairs Street, Dzanani
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Navigation Buttons (4 sections) -->
+    <div class="nav-menu">
+        <button class="nav-btn" data-nav="home"><i class="fas fa-home"></i> HOME</button>
+        <button class="nav-btn" data-nav="catalog"><i class="fas fa-cut"></i> PRICES</button>
+        <button class="nav-btn" data-nav="gallery"><i class="fas fa-images"></i> GALLERY</button>
+        <button class="nav-btn" data-nav="bookings"><i class="fas fa-calendar-alt"></i> BOOK</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // ---------- ZIPPER ANIMATION (barber cutter moves like zipper) ----------
+    const runner = document.getElementById('clipperRunner');
+    const globalLoaderDiv = document.getElementById('globalLoader');
+    
+    function animateZipper() {
+        let startTime = null;
+        const duration = 2200;
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const leftPercent = -10 + (progress * 110);
+            if (runner) runner.style.left = leftPercent + '%';
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                setTimeout(() => {
+                    globalLoaderDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        globalLoaderDiv.style.display = 'none';
+                        document.getElementById('mainContent').style.opacity = '1';
+                        initRisingLogo();
+                        initCatalog();
+                        initGallery();
+                        initMapAndHours();
+                        attachWhatsAppFixed();
+                        setupSectionNavigation();
+                        setMinDate();
+                    }, 200);
+                }, 100);
+            }
+        }
+        requestAnimationFrame(step);
+    }
+    animateZipper();
+    
+    // Rising letters effect
+    function initRisingLogo() {
+        const logoEl = document.querySelector('.logo-large');
+        if (!logoEl) return;
+        const text = logoEl.innerHTML;
+        logoEl.innerHTML = '';
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = text;
+        const lines = Array.from(tempDiv.childNodes);
+        lines.forEach(line => {
+            if (line.nodeType === 3 && line.textContent.trim() !== '') {
+                const str = line.textContent;
+                const spanWrap = document.createElement('span');
+                str.split('').forEach((char, idx) => {
+                    const span = document.createElement('span');
+                    span.textContent = char === ' ' ? '\u00A0' : char;
+                    span.classList.add('rising-text');
+                    span.style.animationDelay = `${idx * 0.03}s`;
+                    spanWrap.appendChild(span);
+                });
+                logoEl.appendChild(spanWrap);
+            } else if (line.nodeType === 1) {
+                const clone = line.cloneNode(true);
+                const innerText = clone.innerText;
+                clone.innerHTML = '';
+                innerText.split('').forEach((char, idx) => {
+                    const span = document.createElement('span');
+                    span.textContent = char;
+                    span.classList.add('rising-text');
+                    span.style.animationDelay = `${idx * 0.03}s`;
+                    clone.appendChild(span);
+                });
+                logoEl.appendChild(clone);
+            }
+        });
+    }
+    
+    // Updated catalog based on WhatsApp prices
+    const catalogItems = [
+        { name: "Haircut", icon: "fas fa-cut", price: "R80", desc: "Classic precision cut & style" },
+        { name: "Bald Head", icon: "fas fa-circle", price: "R50", desc: "Clean smooth shave" },
+        { name: "Trimming", icon: "fas fa-scissors", price: "R30", desc: "Beard & hair touch-up" },
+        { name: "Cut & Black Dye", icon: "fas fa-palette", price: "R150", desc: "Fresh cut + black color" },
+        { name: "Cut & Bleach", icon: "fas fa-snowflake", price: "R180", desc: "Bleach transformation" },
+        { name: "Cut, Bleach + Colour", icon: "fas fa-rainbow", price: "R220", desc: "Full color transformation" },
+        { name: "Design", icon: "fas fa-paintbrush-fine", price: "R30", desc: "Creative hair art" },
+        { name: "Kids Cut (6yrs)", icon: "fas fa-child", price: "R60", desc: "Gentle styling for kids" },
+        { name: "Kids Cut & Black Dye", icon: "fas fa-child", price: "R110", desc: "Kids cut + color" }
+    ];
+    
+    function initCatalog() {
+        const grid = document.getElementById('servicesGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        catalogItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'service-card';
+            card.innerHTML = `
+                <div class="service-icon"><i class="${item.icon}"></i></div>
+                <h3>${item.name}</h3>
+                <div class="price">${item.price}</div>
+                <p style="color:#6B6B6B;">${item.desc}</p>
+            `;
+            grid.appendChild(card);
+        });
+    }
+    
+    // Gallery with 14 images (barber1.jpg to barber14.jpg)
+    function initGallery() {
+        const galleryGrid = document.getElementById('galleryGrid');
+        if (!galleryGrid) return;
+        galleryGrid.innerHTML = '';
+        // Different sizes for artistic masonry look
+        const sizes = ['tall', 'wide', 'square', 'square', 'tall', 'wide', 'square', 'square', 'tall', 'square', 'wide', 'square', 'tall', 'square'];
+        for (let i = 1; i <= 14; i++) {
+            const imgSrc = `barber${i}.jpg`;
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            // Add random aspect ratio classes for variety
+            let additionalStyle = '';
+            if (sizes[i-1] === 'tall') additionalStyle = 'style="margin-bottom: 30px;"';
+            if (sizes[i-1] === 'wide') additionalStyle = 'style="margin-bottom: 20px;"';
+            item.innerHTML = `
+                <img src="${imgSrc}" alt="Barber style ${i}" onerror="this.src='https://placehold.co/600x800/E4E4E7/4A4A4A?text=Barber+${i}'">
+                <div class="gallery-overlay">
+                    <i class="fas fa-search-plus" style="color:white; font-size:1.2rem;"></i>
+                </div>
+            `;
+            galleryGrid.appendChild(item);
+        }
+        // Add lightbox effect on click
+        document.querySelectorAll('.gallery-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const img = this.querySelector('img');
+                if (img) {
+                    const modal = document.createElement('div');
+                    modal.style.position = 'fixed';
+                    modal.style.top = '0';
+                    modal.style.left = '0';
+                    modal.style.width = '100%';
+                    modal.style.height = '100%';
+                    modal.style.backgroundColor = 'rgba(0,0,0,0.9)';
+                    modal.style.zIndex = '10000';
+                    modal.style.display = 'flex';
+                    modal.style.alignItems = 'center';
+                    modal.style.justifyContent = 'center';
+                    modal.style.cursor = 'pointer';
+                    const largeImg = document.createElement('img');
+                    largeImg.src = img.src;
+                    largeImg.style.maxWidth = '90%';
+                    largeImg.style.maxHeight = '90%';
+                    largeImg.style.borderRadius = '16px';
+                    modal.appendChild(largeImg);
+                    modal.onclick = () => modal.remove();
+                    document.body.appendChild(modal);
+                }
+            });
+        });
+    }
+    
+    // Map & Hours
+    function initMapAndHours() {
+        const coords = [-22.899981, 30.03693];
+        const map = L.map('uniqueMap').setView(coords, 16);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap',
+            subdomains: 'abcd'
+        }).addTo(map);
+        const grayIcon = L.divIcon({
+            html: '<div style="background:#2C2C2C; width: 22px; height: 22px; border-radius: 50%; border:2px solid white; box-shadow: 0 0 8px rgba(0,0,0,0.3);"></div>',
+            iconSize: [22,22]
+        });
+        L.marker(coords, { icon: grayIcon }).addTo(map).bindPopup('<b>Unique Barber</b><br/>Nzhelele Biaba, Home Affairs St.');
+        
+        const hoursData = ["Mon 09:00–18:30", "Tue 09:00–16:00", "Wed 09:00–16:00", "Thu 09:00–18:30", "Fri 09:00–18:30", "Sat 08:00–17:00", "Sun 09:00–14:00"];
+        const hoursContainer = document.getElementById('hoursGrid');
+        if (hoursContainer) {
+            hoursContainer.innerHTML = hoursData.map(h => `<span class="day-badge">${h}</span>`).join('');
+        }
+    }
+    
+    function setMinDate() {
+        const dateInput = document.getElementById('bookingDate');
+        if(dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.min = today;
+            dateInput.value = today;
+        }
+    }
+    
+    function attachWhatsAppFixed() {
+        const btn = document.getElementById('whatsappBookBtn');
+        const phone = '27614642556';
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('customerName').value.trim() || "Client";
+            const service = document.getElementById('serviceSelect').value;
+            const date = document.getElementById('bookingDate').value;
+            const time = document.getElementById('bookingTime').value;
+            const notes = document.getElementById('notes').value;
+            let msg = `Hello Unique Barber! I'd like to book.%0A*Name:* ${name}%0A*Service:* ${service}%0A*Date:* ${date}%0A*Time:* ${time}%0A`;
+            if(notes) msg += `*Notes:* ${notes}%0A`;
+            msg += `%0A📍 Location: Nzhelele Biaba Street. See you!`;
+            window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+        });
+    }
+    
+    // SECTION NAVIGATION with individual loading screens
+    const sectionLoader = document.getElementById('sectionLoaderOverlay');
+    const loaderIconElem = document.getElementById('loaderIcon');
+    const loaderTextElem = document.getElementById('loaderText');
+    let isTransitioning = false;
+    
+    const sectionMap = {
+        home: { index: 0, icon: 'fas fa-home', text: 'Loading atmosphere...' },
+        catalog: { index: 1, icon: 'fas fa-cut', text: 'Loading price menu...' },
+        gallery: { index: 2, icon: 'fas fa-images', text: 'Loading gallery...' },
+        bookings: { index: 3, icon: 'fas fa-map-marker-alt', text: 'Loading map & hours...' }
+    };
+    
+    function showSectionLoader(sectionId) {
+        return new Promise((resolve) => {
+            let iconClass = '';
+            let loadingMsg = '';
+            if (sectionId === 'bookings') {
+                iconClass = 'fas fa-map-marker-alt';
+                loadingMsg = 'Locating studio & schedule...';
+            } else if (sectionId === 'catalog') {
+                iconClass = 'fas fa-cut';
+                loadingMsg = 'Loading premium packages...';
+            } else if (sectionId === 'gallery') {
+                iconClass = 'fas fa-images';
+                loadingMsg = 'Loading artistry gallery...';
+            } else {
+                iconClass = 'fas fa-book';
+                loadingMsg = 'Preparing experience...';
+            }
+            loaderIconElem.innerHTML = `<i class="${iconClass}"></i>`;
+            loaderTextElem.innerText = loadingMsg;
+            sectionLoader.classList.add('active');
+            setTimeout(() => resolve(), 600);
+        });
+    }
+    
+    function hideSectionLoader() {
+        sectionLoader.classList.remove('active');
+    }
+    
+    function setupSectionNavigation() {
+        const navBtns = document.querySelectorAll('.nav-btn');
+        
+        function scrollToSection(sectionId) {
+            const sections = document.querySelectorAll('.section-panel');
+            const index = sectionMap[sectionId]?.index;
+            if (index !== undefined && sections[index]) {
+                sections[index].scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'start' });
+            }
+        }
+        
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const target = btn.getAttribute('data-nav');
+                if (!target || isTransitioning) return;
+                isTransitioning = true;
+                await showSectionLoader(target);
+                scrollToSection(target);
+                setTimeout(() => {
+                    hideSectionLoader();
+                    isTransitioning = false;
+                }, 500);
+                navBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+        
+        const observerOptions = { threshold: 0.5 };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const sectionId = entry.target.getAttribute('data-section');
+                    if (sectionId) {
+                        navBtns.forEach(btn => {
+                            if (btn.getAttribute('data-nav') === sectionId) {
+                                btn.classList.add('active');
+                            } else {
+                                btn.classList.remove('active');
+                            }
+                        });
+                    }
+                }
+            });
+        }, observerOptions);
+        document.querySelectorAll('.section-panel').forEach(s => observer.observe(s));
+        document.querySelector('.nav-btn[data-nav="home"]').classList.add('active');
+    }
+</script>
+</body>
+</html>
